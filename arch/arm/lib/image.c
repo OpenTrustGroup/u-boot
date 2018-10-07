@@ -11,6 +11,7 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 #define LINUX_ARM64_IMAGE_MAGIC 0x644d5241
+#define ZIRCON_BOOTSHIM_ARM64_IMAGE_CODE0 0xd5384250
 
 /* See Documentation/arm64/booting.txt in the Linux kernel */
 struct Image_header {
@@ -36,6 +37,13 @@ int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 	*relocated_addr = image;
 
 	ih = (struct Image_header *)map_sysmem(image, 0);
+
+	/* TODO(james): this is workaround for Zircon bootshim */
+	if (ih->code0 == le32_to_cpu(ZIRCON_BOOTSHIM_ARM64_IMAGE_CODE0)) {
+		puts("Found Zircon bootshim ARM64 Image\n");
+		*size = 0x10000;
+		goto exit;
+	}
 
 	if (ih->magic != le32_to_cpu(LINUX_ARM64_IMAGE_MAGIC)) {
 		puts("Bad Linux ARM64 Image magic!\n");
@@ -71,6 +79,7 @@ int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 
 	*relocated_addr = ALIGN(dst, SZ_2M) + text_offset;
 
+exit:
 	unmap_sysmem(ih);
 
 	return 0;
